@@ -17,6 +17,7 @@ class Room_Manager {
                 const y = data.location.y;
                 const room_id = data.room_id;
                 const room = this.room_list.find(room => room.id == room_id);
+                if(!room) return socket.emit("alert-error", "Something went wrong, please try again...")
                 const player = room.connected_players.find(player => player.socket.id == socket.id)
                 if(!player) return socket.emit("alert-error", "You are not in this room!")
                 room.makeMove(socket, x, y)
