@@ -1,4 +1,5 @@
 const Room = require("./room").Room
+const logger = require("./logger")
 
 class Room_Manager {
     constructor(io) {
@@ -17,7 +18,10 @@ class Room_Manager {
                 const y = data.location.y;
                 const room_id = data.room_id;
                 const room = this.room_list.find(room => room.id == room_id);
-                if(!room) return socket.emit("alert-error", "Something went wrong, please try again...")
+                if(!room) {
+                    logger.warn(`user [${socet.id}] tried to make a move to [${x}; ${y}] on room [${room_id}] but the room does not exist`)
+                    return socket.emit("alert-error", "Something went wrong, please try again...")
+                }
                 const player = room.connected_players.find(player => player.socket.id == socket.id)
                 if(!player) return socket.emit("alert-error", "You are not in this room!")
                 room.makeMove(socket, x, y)

@@ -1,4 +1,5 @@
 const win_module = require("./win_controller")
+const logger = require("./logger")
 
 class Room {
     constructor(io, name, password, board_size, player_limit, piece_streak) {
@@ -93,11 +94,13 @@ class Room {
         
         socket.join(this.id)
         this.connected_players.push({socket: socket, piece: piece})
+        logger.info(`user [${socket.id}] has joined room [${this.id}] as [${piece}]`)
     }
     removePlayer(socket_id) {
         let player_index = this.connected_players.findIndex(player => player.socket.id == socket_id)
         this.connected_players[player_index].socket.leave(this.id)
         this.connected_players.splice(player_index, 1)
+        logger.info(`user [${socket_id}] on room [${this.id}] was removed from the room`)
     }
     getPlayerCount() {
         return this.connected_players.length
@@ -113,19 +116,34 @@ class Room {
             current_player: this.getCurrentPlayer().piece,
             next_player: this.getNextPlayer().piece
         })
+        logger.info(`users on room [${this.id}] were sent the current game state`)
+        
     }
     makeMove(socket, x, y) {
         const player = this.getPlayerBySocketId(socket.id);
         const turn_player = this.getCurrentPlayer()
-        if(this.board[y][x].piece != "none") return socket.emit("alert-error", "You can't play in occupied squares");
-        if(turn_player.socket.id != player.socket.id) return socket.emit("alert-error", "It's Not your turn")
+        if(this.board[y][x].piece != "none") {
+            socket.emit("alert-error", "You can't play in occupied squares");
+            logger.info(`user [${socket.id}] on room [${this.id}] tried to move [${turn_player.piece}] to [${x};${y}] but it's occupied`)
+            return
+        }
+        if(turn_player.socket.id != player.socket.id) {
+            socket.emit("alert-error", "It's Not your turn")
+            logger.info(`user [${socket.id}] on room [${this.id}] tried to move [${turn_player.piece}] to [${x};${y}] but it's not their turn`)
+            return
+        }
         this.board[y][x].piece = player.piece;
         
-        if(this.checkWin(x, y)) this.io.to(this.id).emit("game_end", {
+        if(this.checkWin(x, y)) {
+            this.io.to(this.id).emit("game_end", {
             winner_id: turn_player.socket.id,
             winner_piece: this.getCurrentPlayer().piece
         })
+        logger.info(`user [${socket.id}] on room [${this.id}] moved [${turn_player.piece}] to [${x};${y}] and WON`)
+    }
         this.turn += 1;
+        
+        logger.info(`user [${socket.id}] on room [${this.id}] moved [${turn_player.piece}] to [${x};${y}]`)
     }
     checkWin(x, y) {
         if(win_module.checkHorizontalWin(this.board, this.piece_streak, x, y)) return true
@@ -136,6 +154,7 @@ class Room {
     resetGame() {
         this.board = this.generate_board(this.size);
         this.turn = 0;
+        logger.info(`user [${socket.id}] on room [${this.id}] moved [${turn_player.piece}] to [${x};${y}] and WON`)
     }
 }
 
